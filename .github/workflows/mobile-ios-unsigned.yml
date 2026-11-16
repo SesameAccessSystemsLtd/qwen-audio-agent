@@ -1,0 +1,59 @@
+name: iOS unsigned device prototype
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ios-unsigned-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build unsigned iPhone IPA
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix mobile test
+      - run: npm run mobile:sync
+      - name: Build for a physical iPhone without signing
+        run: >-
+          xcodebuild
+          -project mobile/ios/App/App.xcodeproj
+          -scheme App
+          -sdk iphoneos
+          -destination 'generic/platform=iOS'
+          -configuration Debug
+          -derivedDataPath mobile/ios/device-build
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGN_IDENTITY=''
+          build
+      - name: Package standard unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          app='mobile/ios/device-build/Build/Products/Debug-iphoneos/App.app'
+          test -d "$app"
+          mkdir -p mobile/ios/unsigned-ipa/Payload
+          cp -R "$app" mobile/ios/unsigned-ipa/Payload/App.app
+          cd mobile/ios/unsigned-ipa
+          /usr/bin/zip -qry ../qwen-sis-voice-unsigned.ipa Payload
+          /usr/bin/unzip -t ../qwen-sis-voice-unsigned.ipa
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qwen-sis-voice-unsigned-ipa
+          path: mobile/ios/qwen-sis-voice-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+
