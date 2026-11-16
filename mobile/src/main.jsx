@@ -5,14 +5,21 @@ import '../../web/src/styles.css'
 import './mobile.css'
 import { mobileGatewayTransport, pairMobileGateway } from './mobile-profile.js'
 import {
+  activateLockedAudioSession,
+  deactivateLockedAudioSession,
   loadMobileGatewayProfile,
+  loadLockedListeningPreference,
   mobileDeviceId,
   mobileLaunchUrl,
   mobilePairingRequest,
+  onLockedAudioRouteChanged,
+  onMobileAppStateChange,
   onMobileUrlOpen,
   removeMobileGatewayProfile,
+  saveLockedListeningPreference,
   saveMobileGatewayProfile,
   scanGatewayPairingCode,
+  supportsLockedListening,
 } from './native-runtime.js'
 
 function MobileApp() {
@@ -21,7 +28,20 @@ function MobileApp() {
   const [pairingCode, setPairingCode] = useState('')
   const [status, setStatus] = useState('正在读取连接配置…')
   const [busy, setBusy] = useState(false)
+  const [lockedListening, setLockedListening] = useState(false)
+  const [lockedAudio, setLockedAudio] = useState({
+    supported: supportsLockedListening(),
+    active: false,
+    bluetooth: false,
+  })
   const pairing = useRef(false)
+  const lockedListeningRef = useRef(false)
+
+  const applyLockedAudio = useCallback(async () => {
+    const next = await activateLockedAudioSession()
+    setLockedAudio(next)
+    return next
+  }, [])
 
   const activateProfile = useCallback(async next => {
     configureGatewayTransport(mobileGatewayTransport(next))
@@ -77,6 +97,40 @@ function MobileApp() {
     }
   }, [activateProfile, pair])
 
+  useEffect(() => {
+    if (!supportsLockedListening()) return undefined
+    let active = true
+    loadLockedListeningPreference()
+      .then(async enabled => {
+        if (!active) return
+        lockedListeningRef.current = enabled
+        setLockedListening(enabled)
+        if (!enabled) return
+        try {
+          const next = await applyLockedAudio()
+          if (active) setLockedAudio(next)
+        } catch (error) {
+          if (active) setStatus(error.message || 'Locked listening could not start')
+        }
+      })
+      .catch(error => active && setStatus(error.message || 'Locked listening could not start'))
+
+    const removeAppStateListener = onMobileAppStateChange(() => {
+      if (!lockedListeningRef.current) return
+      void applyLockedAudio().catch(error => {
+        if (active) setStatus(error.message || 'Locked listening needs attention')
+      })
+    })
+    const removeRouteListener = onLockedAudioRouteChanged(next => {
+      if (active) setLockedAudio(next)
+    })
+    return () => {
+      active = false
+      removeAppStateListener()
+      removeRouteListener()
+    }
+  }, [applyLockedAudio])
+
   const scan = async () => {
     setBusy(true)
     try {
@@ -91,6 +145,12 @@ function MobileApp() {
 
   const disconnect = async () => {
     if (!confirm('断开这台 Gateway？之后需要重新扫码配对。')) return
+    if (lockedListeningRef.current) {
+      await deactivateLockedAudioSession().catch(() => {})
+      await saveLockedListeningPreference(false)
+      lockedListeningRef.current = false
+      setLockedListening(false)
+    }
     await removeMobileGatewayProfile()
     configureGatewayTransport()
     setProfile(null)
@@ -98,10 +158,47 @@ function MobileApp() {
     setStatus('已断开，请重新扫码配对')
   }
 
+  const toggleLockedListening = async () => {
+    setBusy(true)
+    try {
+      if (lockedListeningRef.current) {
+        const next = await deactivateLockedAudioSession()
+        await saveLockedListeningPreference(false)
+        lockedListeningRef.current = false
+        setLockedListening(false)
+        setLockedAudio(next)
+        setStatus('')
+        return
+      }
+      const next = await applyLockedAudio()
+      await saveLockedListeningPreference(true)
+      lockedListeningRef.current = true
+      setLockedListening(true)
+      setLockedAudio(next)
+      setStatus('')
+    } catch (error) {
+      setStatus(error.message || 'Locked listening could not start')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (profile && WebApp) return <div className="mobile-runtime">
+    {lockedAudio.supported && <button
+      className={`mobile-lock-toggle${lockedListening ? ' active' : ''}`}
+      type="button"
+      aria-pressed={lockedListening}
+      disabled={busy}
+      onClick={toggleLockedListening}
+      title="Keep the private voice session available when the iPhone is locked"
+    >
+      <span>{lockedListening ? 'Locked listening on' : 'Enable locked listening'}</span>
+      {lockedListening && <small>{lockedAudio.bluetooth ? 'Bluetooth audio' : 'iPhone audio'}</small>}
+    </button>}
     <button className="mobile-disconnect" type="button" onClick={disconnect}>
       断开
     </button>
+    {status && <div className="mobile-runtime-status" role="status">{status}</div>}
     <WebApp />
   </div>
 

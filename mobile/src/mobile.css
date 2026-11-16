@@ -58,6 +58,42 @@ body { background: #08090d; }
   font-size: 11px;
 }
 
+.mobile-lock-toggle {
+  position: fixed;
+  z-index: 30;
+  top: calc(env(safe-area-inset-top) + 72px);
+  left: 14px;
+  min-height: 34px;
+  display: grid;
+  justify-items: start;
+  padding: 6px 10px;
+  border: 1px solid #ffffff18;
+  border-radius: 11px;
+  color: #aaa7b2;
+  background: #111319dd;
+  font-size: 11px;
+}
+.mobile-lock-toggle.active {
+  border-color: #70e0ab66;
+  color: #d7ffeb;
+  background: #123126e8;
+}
+.mobile-lock-toggle small { color: #8dddb5; font-size: 9px; }
+.mobile-runtime-status {
+  position: fixed;
+  z-index: 29;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  left: 14px;
+  padding: 9px 12px;
+  border: 1px solid #ffb65f44;
+  border-radius: 10px;
+  color: #ffdcb2;
+  background: #2b2018ee;
+  font-size: 11px;
+  text-align: center;
+}
+
 @media (max-width: 600px) {
   .mobile-runtime header { padding-top: 2px; }
   .mobile-runtime .brand div { font-size: 12px; }

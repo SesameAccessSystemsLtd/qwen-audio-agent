@@ -19,6 +19,8 @@ or the source-build steps below.
 `mobile-ios-simulator-app` is for the **iOS Simulator**, not direct iPhone installation.
 Physical iPhone testing needs Xcode and development signing. There is no app-store release yet.
 The pairing steps target development builds; prefer App and Gateway builds from the same revision.
+For a Steven-only Windows installation of the local prototype, follow
+[Windows installation for the Steven-only iPhone prototype](../operations/windows-ios-sideload.md).
 
 ## Connect
 
@@ -43,6 +45,28 @@ The pairing steps target development builds; prefer App and Gateway builds from 
    same connection code.
 3. Grant microphone access for the first call. Later launches reconnect
    automatically. If another Client is active, Mobile asks before taking over.
+
+## Locked-screen Bluetooth audio on iPhone
+
+The iOS development build has an explicit **Enable locked listening** control.
+Turn it on once while Mobile is open and the microphone is active. The native
+app then owns a `playAndRecord` voice-chat audio session, allows a paired
+Bluetooth headset route, keeps the audio background mode active while the
+screen is locked, and restores the session after route changes or phone-call
+interruptions. The status under the control says **Bluetooth audio** when iOS
+has selected a Bluetooth input or output.
+
+This mode continuously holds the microphone/audio session, so it uses more
+battery and should be switched off when it is not needed. iOS does not relaunch
+an app that the user force-quits; after a force-quit or phone restart, open
+Mobile once before locking the phone. The Gateway host and its private network
+connection must remain online.
+
+Locked listening uses standard iPhone Bluetooth audio. It does not add Solos
+button controls or a proprietary “Hey Solos” wake path; those require the Solos
+SDK. A physical iPhone build must still be signed in Xcode, and locked-screen
+operation must be verified on the target phone and headset before it is treated
+as proven.
 
 A connection code contains an independent, revocable device credential and is shown once on the
 Gateway host. Mobile imports it and uses the same WSS channel for authentication and business
