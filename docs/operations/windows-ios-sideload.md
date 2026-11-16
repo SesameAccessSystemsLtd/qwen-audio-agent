@@ -13,10 +13,11 @@ credential. Do not add any of those values to GitHub Actions secrets.
 
 ## 1. Produce the unsigned IPA
 
-The repository contains the manually triggered workflow
-`.github/workflows/mobile-ios-unsigned.yml`. Run **iOS unsigned device
-prototype** from the repository's GitHub Actions page, then download the
-`qwen-sis-voice-unsigned-ipa` artifact. Extract it on Windows to obtain:
+The fork's standard **Mobile** workflow produces the device artifact whenever
+the protected mobile source changes. The repository also contains the manually
+triggered workflow `.github/workflows/mobile-ios-unsigned.yml` for a bounded
+rebuild. Download the `qwen-sis-voice-unsigned-ipa` artifact from the completed
+workflow run. Extract it on Windows to obtain:
 
 `qwen-sis-voice-unsigned.ipa`
 
